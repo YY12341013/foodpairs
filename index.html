@@ -127,6 +127,20 @@ h1{
 .star{width:34px;height:34px;display:block}
 .win-card .stat{font-size:12.5px;color:var(--sub);letter-spacing:.06em}
 .win-card .rec{font-size:11px;color:var(--matcha);letter-spacing:.06em;margin-top:7px}
+.win-card .rec.new{color:var(--sakura)}
+/* 破纪录的小礼花：纸屑从卡片中部炸开，先上飘再散落（不挡点击） */
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden}
+#confetti .cf{
+  position:absolute;display:block;opacity:0;
+  animation-name:cfpop;animation-timing-function:cubic-bezier(.22,.68,.3,1);animation-fill-mode:forwards;
+}
+@keyframes cfpop{
+  0%{opacity:0;transform:translate(0,8px) rotate(0deg) scale(.55)}
+  9%{opacity:1}
+  46%{transform:translate(calc(var(--dx) * .72),var(--dy)) rotate(calc(var(--rot) * .5)) scale(1)}
+  100%{opacity:0;transform:translate(var(--dx),calc(var(--dy) + var(--fall))) rotate(var(--rot)) scale(1)}
+}
+@media (prefers-reduced-motion:reduce){#confetti{display:none}}
 .panel{background:var(--paper);border:1px solid var(--line);border-radius:15px;padding:18px;margin-top:14px}
 .panel-h{font-size:10px;letter-spacing:.26em;color:var(--sub);text-align:center;margin-bottom:14px}
 #parade{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
@@ -343,6 +357,34 @@ function sfxMiss(){
   if(!sndOn)return;
   beep({f:196.00,f2:174.61,d:.22,v:.13,type:'sine',lp:820,at:.02});
   beep({f:146.83,d:.15,v:.055,type:'sine',lp:560,at:.07});
+}
+/* 礼花筒的"啵"：一小段噪声过带通。走主输出，不受音乐开关影响 */
+function pop(at,v){
+  const c=actx(); if(!c)return;
+  if(!pop._buf){
+    const len=Math.floor(c.sampleRate*.25),b=c.createBuffer(1,len,c.sampleRate),ch=b.getChannelData(0);
+    for(let i=0;i<len;i++)ch[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.2);
+    pop._buf=b;
+  }
+  const t=c.currentTime+(at||0);
+  const src=c.createBufferSource(),bp=c.createBiquadFilter(),g=c.createGain();
+  src.buffer=pop._buf;
+  bp.type='bandpass';bp.frequency.value=1500;bp.Q.value=.7;
+  g.gain.setValueAtTime(.0001,t);
+  g.gain.exponentialRampToValueAtTime(v||.2,t+.006);
+  g.gain.exponentialRampToValueAtTime(.0001,t+.16);
+  src.connect(bp);bp.connect(g);g.connect(c.destination);
+  src.start(t);src.stop(t+.22);
+}
+/* 破纪录：两记礼花 + D5→A5→D6→G6 上行小号角 */
+function sfxFanfare(){
+  if(!sndOn)return;
+  pop(0,.22);
+  pop(.14,.12);
+  beep({f:587.33,d:.18,v:.13,type:'triangle',lp:5200,at:.05});
+  beep({f:880.00,d:.20,v:.11,type:'triangle',lp:5200,at:.17});
+  beep({f:1174.66,d:.26,v:.09,type:'triangle',lp:6000,at:.30});
+  beep({f:1567.98,d:.55,v:.06,type:'sine',lp:7000,at:.44});
 }
 function sndIcon(on){
   const c=on?'#948E85':'#C3BDB4';
@@ -583,6 +625,33 @@ function toast(msg){
   t.classList.remove('show');void t.offsetWidth;t.classList.add('show');
 }
 
+/* ---------- 破纪录的小礼花：24 片纸屑，和色，先炸开再飘落 ---------- */
+const CF_COLORS=['#E2AFA3','#A3B79C','#EFD9AE','#DDAE88','#D3A79E','#C6C1B8'];
+function confetti(){
+  const box=$('#confetti'); if(!box)return;
+  let html='';
+  for(let i=0;i<24;i++){
+    const dx=((Math.random()*2-1)*150).toFixed(0);        /* 水平散开 ±150px */
+    const dy=(-(55+Math.random()*95)).toFixed(0);         /* 先向上冲 */
+    const fall=(130+Math.random()*170).toFixed(0);        /* 再往下飘 */
+    const rot=((Math.random()*2-1)*540).toFixed(0);
+    const lx=(50+(Math.random()*2-1)*7).toFixed(1);       /* 起点在卡片中部附近 */
+    const ty=(36+(Math.random()*2-1)*5).toFixed(1);
+    const col=CF_COLORS[rnd(0,CF_COLORS.length-1)];
+    const round=Math.random()<.32;                        /* 三成做成小圆点 */
+    const w=round?6:(Math.random()<.5?4:5);
+    const h=round?6:(Math.random()<.4?13:8);
+    html+='<i class="cf" style="left:'+lx+'%;top:'+ty+'%;background:'+col
+      +';width:'+w+'px;height:'+h+'px;border-radius:'+(round?'50%':'1px')
+      +';--dx:'+dx+'px;--dy:'+dy+'px;--fall:'+fall+'px;--rot:'+rot+'deg'
+      +';animation-duration:'+(1.15+Math.random()*.75).toFixed(2)+'s'
+      +';animation-delay:'+(Math.random()*.2).toFixed(2)+'s"></i>';
+  }
+  box.innerHTML=html;
+  clearTimeout(confetti._t);
+  confetti._t=setTimeout(()=>{box.innerHTML='';},2600);   /* 放完就清干净，不留 DOM 垃圾 */
+}
+
 /* ---------- 过关结算 ---------- */
 function winGame(){
   clearInterval(G.timer);
@@ -603,8 +672,11 @@ function winGame(){
     best[G.pairs]={moves:G.moves,time:sec};
     try{localStorage.setItem(BEST_KEY,JSON.stringify(best))}catch(e){}
     bestMsg='新纪录　'+G.moves+' 步 · '+sec+' 秒';
+    $('#winBest').classList.add('new');
+    confetti();sfxFanfare();          /* 破纪录才放礼花，没破就别吵 */
   }else{
     bestMsg='最佳仍是 '+old.moves+' 步 · '+old.time+' 秒，差一点点';
+    $('#winBest').classList.remove('new');
   }
   $('#winBest').textContent=bestMsg;
   /* 美食巡游：这一局配到的全部食物 */
@@ -650,5 +722,6 @@ paintSnd();
 paintBgm();
 renderHome();
 </script>
+<div id="confetti" aria-hidden="true"></div>
 </body>
 </html>
