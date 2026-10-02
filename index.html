@@ -92,6 +92,8 @@ h1{
 }
 #topbar .snd:active{background:#EFECE6;transform:none}
 #topbar .snd svg{width:17px;height:17px;display:block}
+#topbar .snd + .snd{margin-left:1px}
+#topbar .snd.on{background:#F1EEE9}
 
 #grid{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-top:16px}
 .card{aspect-ratio:3/4;perspective:800px;cursor:pointer}
@@ -179,6 +181,7 @@ h1{
       <div class="st"><span class="k">STEPS</span><span class="v" id="stMoves">0</span></div>
       <div class="st"><span class="k">PAIRS</span><span class="v" id="stPairs">0/0</span></div>
       <div class="st"><span class="k">TIME</span><span class="v" id="stTime">0s</span></div>
+      <button class="snd" id="btnBgm" aria-label="背景音乐开关"></button>
       <button class="snd" id="btnSnd" aria-label="音效开关"></button>
     </div>
     <div id="grid"></div>
@@ -351,6 +354,137 @@ function sndIcon(on){
 }
 function paintSnd(){$('#btnSnd').innerHTML=sndIcon(sndOn);}
 
+/* =====================================================
+   背景音乐：八音盒 + 卡林巴音色，现场合成的 8 小节循环
+   同样不加载任何音频文件，单文件依旧自足。
+   D 大调五声音阶（亮堂、不出错音），104 BPM，didgeridoo 不存在的轻松小快板。
+   ===================================================== */
+const BGM_KEY='foodpairs_bgm_v1';
+let bgmOn=true;
+try{bgmOn=localStorage.getItem(BGM_KEY)!=='0'}catch(e){}
+
+const BPM=104, STEP=30/BPM;          /* 八分音符时长 */
+const SCALE=[0,2,4,7,9], ROOT=62;    /* D4 起的大调五声音阶 */
+const CHORDS=[50,47,43,45];          /* 每小节根音：D → Bm → G → A */
+/* 8 小节 × 8 个八分音符的旋律（数字=音阶级数，可跨八度；null=休止） */
+const MELODY=[
+  [5,null,4,3,null,2,null,null],
+  [3,null,4,5,null,4,3,null],
+  [2,null,3,4,null,5,null,4],
+  [4,3,2,null,1,null,0,null],
+  [5,null,4,5,null,6,null,5],
+  [7,null,6,5,null,4,3,null],
+  [4,null,3,4,null,5,6,null],
+  [3,2,1,null,2,null,0,null],
+];
+const bgm={gain:null,timer:null,running:false,step:0,nextT:0,noise:null};
+
+function mtof(m){return 440*Math.pow(2,(m-69)/12);}
+/* 音阶级数 → 频率（超出五位自动跨八度） */
+function deg(i){
+  const oct=Math.floor(i/5), d=((i%5)+5)%5;
+  return mtof(ROOT+oct*12+SCALE[d]);
+}
+/* BGM 专属总线：独立于音效，音量统一在这里管 */
+function bgmBus(){
+  const c=actx(); if(!c)return null;
+  if(!bgm.gain){bgm.gain=c.createGain();bgm.gain.gain.value=.0001;bgm.gain.connect(c.destination);}
+  return bgm.gain;
+}
+/* 单音：t 是绝对时间（不是相对偏移），专为提前排程而写。
+   注意别叫 tone()——插画换色那边的函数已经占了这个名字。 */
+function voice(t,o){
+  const c=actx(),bus=bgmBus(); if(!c||!bus)return;
+  const osc=c.createOscillator(),g=c.createGain(),lp=c.createBiquadFilter();
+  osc.type=o.type||'sine';
+  osc.frequency.setValueAtTime(o.f,t);
+  g.gain.setValueAtTime(.0001,t);
+  g.gain.exponentialRampToValueAtTime(Math.max(o.v,.0002),t+(o.atk||.006));
+  g.gain.exponentialRampToValueAtTime(.0001,t+(o.d||.3));
+  lp.type='lowpass';lp.frequency.value=o.lp||6000;
+  osc.connect(g);g.connect(lp);lp.connect(bus);
+  osc.start(t);osc.stop(t+(o.d||.3)+.05);
+}
+/* 八音盒音色：基音 + 两个泛音，越高的泛音衰减越快 */
+function musicBox(t,f,d,v){
+  voice(t,{f:f,d:d,v:v,type:'sine',lp:7000,atk:.004});
+  voice(t+.004,{f:f*2,d:d*.5,v:v*.3,type:'sine',lp:9000,atk:.004});
+  voice(t+.004,{f:f*3.01,d:d*.28,v:v*.11,type:'sine',lp:9000,atk:.004});
+}
+/* 沙锤：一小段白噪声过高通，beat 上重、反拍上轻 */
+function shaker(t,v){
+  const c=actx(),bus=bgmBus(); if(!c||!bus)return;
+  if(!bgm.noise){
+    const len=Math.floor(c.sampleRate*.2),b=c.createBuffer(1,len,c.sampleRate),ch=b.getChannelData(0);
+    for(let i=0;i<len;i++)ch[i]=(Math.random()*2-1)*(1-i/len);
+    bgm.noise=b;
+  }
+  const src=c.createBufferSource(),bp=c.createBiquadFilter(),g=c.createGain();
+  src.buffer=bgm.noise;
+  bp.type='bandpass';bp.frequency.value=6200;bp.Q.value=1.1;
+  g.gain.setValueAtTime(.0001,t);
+  g.gain.exponentialRampToValueAtTime(v,t+.004);
+  g.gain.exponentialRampToValueAtTime(.0001,t+.07);
+  src.connect(bp);bp.connect(g);g.connect(bus);
+  src.start(t);src.stop(t+.12);
+}
+/* 排一个八分音符格里该响的所有声部 */
+function scheduleStep(i,t){
+  const bar=Math.floor(i/8),slot=i%8,root=CHORDS[bar%4];
+  if(slot===0)voice(t,{f:mtof(root),d:.5,v:.055,type:'sine',lp:420,atk:.02});          /* 低音：根音 */
+  if(slot===4)voice(t,{f:mtof(root+7),d:.45,v:.045,type:'sine',lp:420,atk:.02});       /* 低音：五度 */
+  if(slot%2===1){                                                                      /* 卡林巴琶音落在反拍 */
+    const off=[7,12,16,12][(slot-1)/2];
+    musicBox(t,mtof(root+off),.42,.038);
+  }
+  const n=MELODY[bar][slot];
+  if(n!==null&&n!==undefined)musicBox(t,deg(n),.62,.075);                              /* 主旋律 */
+  shaker(t,slot%2===0?.020:.012);                                                      /* 轻微的颗粒感 */
+}
+/* 提前 0.25 秒排程，避免主线程卡顿造成节奏抖动 */
+function bgmTick(){
+  const c=actx(); if(!c)return;
+  const horizon=c.currentTime+.25;
+  let guard=0;
+  while(bgm.nextT<horizon&&guard++<64){
+    scheduleStep(bgm.step,bgm.nextT);
+    bgm.step=(bgm.step+1)%64;
+    bgm.nextT+=STEP;
+  }
+}
+function bgmStart(){
+  if(bgm.running||!sndOn||!bgmOn)return;
+  const c=actx(),bus=bgmBus(); if(!c||!bus)return;
+  bgm.running=true;
+  const t=c.currentTime;
+  bus.gain.cancelScheduledValues(t);
+  bus.gain.setValueAtTime(Math.max(bus.gain.value,.0001),t);
+  bus.gain.linearRampToValueAtTime(.085,t+.8);          /* 淡入，不吓人 */
+  bgm.nextT=t+.1;
+  bgmTick();
+  bgm.timer=setInterval(bgmTick,40);
+}
+function bgmStop(fade){
+  if(bgm.timer){clearInterval(bgm.timer);bgm.timer=null;}
+  bgm.running=false;
+  const c=actx(); if(!c||!bgm.gain)return;
+  const t=c.currentTime,g=bgm.gain;
+  g.gain.cancelScheduledValues(t);
+  g.gain.setValueAtTime(Math.max(g.gain.value,.0001),t);
+  g.gain.linearRampToValueAtTime(.0001,t+(fade||.45));  /* 淡出再停 */
+}
+function bgmIcon(on){
+  const c=on?'#948E85':'#C3BDB4';
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="'+c+'" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">'
+    +'<path d="M9 18V6.2l9-1.7v11"/><circle cx="6.6" cy="18" r="2.4"/><circle cx="15.6" cy="15.5" r="2.4"/>'
+    +(on?'':'<path d="M4 20L20 4"/>')
+    +'</svg>';
+}
+function paintBgm(){
+  $('#btnBgm').innerHTML=bgmIcon(bgmOn);
+  $('#btnBgm').classList.toggle('on',bgmOn);
+}
+
 /* ---------- 洗牌：先从全部食材随机挑 pairs 种（每局菜单不同），再各放两张洗匀 ---------- */
 function buildDeck(pairs){
   const pool=FOOD_KEYS.slice();
@@ -479,16 +613,41 @@ function winGame(){
 }
 
 /* ---------- 按钮接线 ---------- */
+/* 喇叭 = 总开关：关掉就是彻底安静，背景音乐也停 */
 $('#btnSnd').onclick=()=>{
   sndOn=!sndOn;
   try{localStorage.setItem(SND_KEY,sndOn?'1':'0')}catch(e){}
   paintSnd();
-  if(sndOn)sfxMatch();               /* 打开时先响一声，确认音量正常 */
+  if(sndOn){
+    sfxMatch();                     /* 打开时先响一声，确认音量正常 */
+    if(bgmOn)bgmStart();
+  }else bgmStop();
+};
+/* 音符 = 只管背景音乐 */
+$('#btnBgm').onclick=()=>{
+  bgmOn=!bgmOn;
+  try{localStorage.setItem(BGM_KEY,bgmOn?'1':'0')}catch(e){}
+  paintBgm();
+  if(bgmOn)bgmStart(); else bgmStop();
 };
 $('#btnQuit').onclick=()=>{clearInterval(G.timer);renderHome();show('s-home');};
 $('#btnAgain').onclick=()=>startGame(G.pairs);
 $('#btnHome').onclick=()=>{renderHome();show('s-home');};
+/* 浏览器不允许自动播放，所以等第一次点击/按键再起乐 */
+let tapped=false;
+function firstTap(){
+  if(tapped)return; tapped=true;
+  if(bgmOn&&sndOn)bgmStart();
+}
+document.addEventListener('pointerdown',firstTap,{once:true});
+document.addEventListener('keydown',firstTap,{once:true});
+/* 切到别的标签页就先歇着，回来接着播 */
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden)bgmStop(.25);
+  else if(bgmOn&&sndOn&&tapped)bgmStart();
+});
 paintSnd();
+paintBgm();
 renderHome();
 </script>
 </body>
