@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#FFF6E9">
+<title>吃饭日记</title>
+<style>
+/* ===== 基础与配色 ===== */
+:root{
+  --cream:#FFF6E9;      /* 奶油白 打底 */
+  --caramel:#E8A15D;    /* 焦糖橙 主色 */
+  --milk:#C88A5A;       /* 奶茶棕 辅色 */
+  --butter:#F7D9A0;     /* 奶油黄 辅色 */
+  --ink:#5B4234;        /* 深棕 文字 */
+  --matcha:#9CBF8A;     /* 抹茶绿 点缀 */
+  --paper:#FFFCF5;      /* 纸张白 */
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;height:100%;}
+body{
+  background:var(--cream);
+  color:var(--ink);
+  font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+  font-size:16px;line-height:1.7;
+  overflow-x:hidden;
+}
+button{font-family:inherit;color:inherit;border:none;background:none;padding:0;cursor:pointer;}
+img{display:block;max-width:100%;}
+/* 纸张质感：内联 SVG 噪点，不联网 */
+.paper-texture{
+  background-color:var(--paper);
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+}
+.radius-organ{border-radius:20px 26px 22px 28px/26px 20px 28px 22px;}
+
+/* ===== 第 1 幕 开场页 ===== */
+#intro{
+  position:absolute;inset:0;z-index:60;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:0 36px;background:var(--cream);
+  transition:opacity .5s ease;
+}
+#intro .type{
+  font-size:23px;line-height:2;font-weight:500;text-align:center;
+  min-height:6em;letter-spacing:1px;
+}
+#intro .type b{color:var(--caramel);font-weight:500;}
+.caret{display:inline-block;width:2px;height:1.1em;background:var(--caramel);vertical-align:-2px;animation:blink .9s steps(1) infinite;}
+@keyframes blink{50%{opacity:0}}
+#intro .skiphint{margin-top:28px;font-size:13px;color:var(--milk);opacity:.85;}
+#intro .deco{margin-bottom:26px;}
+#intro.out{opacity:0;pointer-events:none;}
+
+/* ===== 第 2 幕 插画过渡 ===== */
+#trans{
+  position:absolute;inset:0;z-index:50;display:none;
+  align-items:center;justify-content:center;background:var(--cream);
+}
+#trans.show{display:flex;animation:pushIn 1.2s ease forwards;}
+@keyframes pushIn{
+  0%{transform:scale(1);opacity:1}
+  70%{transform:scale(1.06);opacity:1}
+  100%{transform:scale(1.35);opacity:0}
+}
+#walker{width:200px;height:200px;animation:walkIn 1.2s cubic-bezier(.2,.8,.3,1) forwards;}
+@keyframes walkIn{from{transform:translateX(-190px)}to{transform:translateX(0)}}
+#legA{animation:legA .32s ease-in-out infinite alternate;transform-origin:100px 122px;}
+#legB{animation:legB .32s ease-in-out infinite alternate;transform-origin:100px 122px;}
+@keyframes legA{from{transform:rotate(14deg)}to{transform:rotate(-14deg)}}
+@keyframes legB{from{transform:rotate(-14deg)}to{transform:rotate(14deg)}}
+.steam{animation:steam 1.4s ease-in-out infinite;}
+@keyframes steam{0%{opacity:.2;transform:translateY(2px)}50%{opacity:.9;transform:translateY(-3px)}100%{opacity:.2;transform:translateY(2px)}}
+
+/* ===== 第 3 幕 主页面 ===== */
+#app{position:absolute;inset:0;display:none;flex-direction:column;}
+#app.show{display:flex;}
+#topbar{
+  flex:none;padding:14px 18px 10px;background:var(--cream);
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  border-bottom:1px dashed rgba(200,138,90,.35);
+}
+#topbar .brand{font-size:17px;font-weight:500;}
+#topbar .date{font-size:12px;color:var(--milk);}
+#backToday{
+  display:none;font-size:12px;padding:5px 12px;border-radius:999px;
+  background:var(--butter);color:var(--ink);
+}
+#backToday.on{display:inline-block;}
+#papers{
+  flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:16px 14px 120px;
+  display:flex;flex-direction:column;gap:14px;align-items:center;
+}
+/* 打印机出纸动画 */
+.paper{
+  width:100%;max-width:460px;padding:20px 20px 18px;
+  border:2px solid var(--milk);
+  border-radius:20px 26px 22px 28px/26px 20px 28px 22px;
+  animation:feed .62s cubic-bezier(.16,.9,.3,1) both;
+}
+@keyframes feed{
+  0%{opacity:0;transform:translateY(120px) rotate(2.5deg) scale(.96);}
+  55%{opacity:1;transform:translateY(-10px) rotate(-.6deg) scale(1.01);}
+  100%{opacity:1;transform:translateY(0) rotate(0) scale(1);}
+}
+.paper:nth-child(odd){transform:rotate(-.5deg);}
+.paper:nth-child(even){transform:rotate(.4deg);}
+.p-title{
+  font-size:17px;font-weight:500;margin-bottom:12px;outline:none;
+  border-bottom:2px dotted rgba(200,138,90,.4);padding-bottom:8px;
+}
+.row{display:flex;align-items:center;gap:10px;margin:9px 0;flex-wrap:wrap;}
+.label{
+  flex:none;font-size:13px;color:var(--milk);
+  background:#FDF1E0;padding:2px 9px;border-radius:999px;
+}
+.field{
+  flex:1;min-width:90px;outline:none;padding:3px 6px;
+  border-bottom:1.5px dashed rgba(200,138,90,.45);
+  min-height:1.7em;
+}
+.field:focus{background:#FFF3E2;border-radius:6px;}
+.field.num{flex:none;min-width:62px;text-align:center;color:var(--caramel);font-weight:500;}
+.unit{font-size:12px;color:var(--milk);}
+[contenteditable][data-ph]:empty::before{content:attr(data-ph);color:rgba(200,138,90,.6);}
+.hint{font-size:11.5px;color:var(--matcha);margin-top:6px;}
+.picker{display:flex;gap:6px;flex-wrap:wrap;}
+.picker button{
+  width:42px;height:42px;border-radius:14px;border:2px solid transparent;
+  display:flex;align-items:center;justify-content:center;background:#FDF1E0;
+  transition:transform .15s ease;
+}
+.picker button svg{width:30px;height:30px;}
+.picker button.on{border-color:var(--caramel);background:#FFE9CE;transform:translateY(-2px);}
+
+/* 照片纸 */
+.slot{
+  width:100%;border:2px dashed rgba(200,138,90,.5);border-radius:18px;
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  color:var(--milk);font-size:13px;padding:14px;
+}
+.slot.filled{border:2px solid var(--milk);padding:8px;background:#FFFDF8;}
+.slot img{width:100%;border-radius:14px;}
+.photo-frame{
+  padding:7px;background:var(--paper);border:2px solid var(--milk);
+  border-radius:18px 22px 18px 22px/22px 18px 22px 18px;
+}
+.sticker-wrap{padding:6px;}
+.sticker-wrap img{max-height:220px;margin:0 auto;}
+.slotbtns{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.slotbtns button{
+  flex:1;min-width:110px;padding:9px 10px;font-size:13px;
+  border:2px solid var(--milk);border-radius:999px;background:var(--paper);
+}
+.slotbtns button.primary{background:var(--caramel);border-color:var(--caramel);color:#fff;}
+.feeling{
+  outline:none;min-height:120px;font-size:15.5px;line-height:1.9;
+  padding:8px 4px;border-left:3px dotted rgba(200,138,90,.4);padding-left:12px;
+}
+.del{
+  float:right;font-size:12px;color:var(--milk);padding:2px 8px;
+  border:1.5px solid rgba(200,138,90,.5);border-radius:999px;margin-left:8px;
+}
+
+/* ===== 固定操作条 ===== */
+#toolbar{
+  position:absolute;left:0;right:0;bottom:0;z-index:30;
+  display:flex;gap:6px;padding:10px 10px calc(12px + env(safe-area-inset-bottom));
+  background:var(--cream);border-top:2px dashed rgba(200,138,90,.35);
+}
+#toolbar button{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  font-size:11px;color:var(--ink);padding:5px 2px;border-radius:14px;
+}
+#toolbar button svg{width:24px;height:24px;}
+#toolbar button:active{background:#FDF1E0;}
+
+/* ===== 弹层 ===== */
+.sheet{
+  position:absolute;inset:0;z-index:70;background:var(--cream);
+  display:none;flex-direction:column;
+}
+.sheet.show{display:flex;}
+.sheet header{
+  flex:none;display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px;border-bottom:1px dashed rgba(200,138,90,.35);
+}
+.sheet header h2{margin:0;font-size:17px;font-weight:500;}
+.sheet .close{font-size:14px;color:var(--milk);padding:6px 10px;}
+.sheet .body{flex:1;overflow-y:auto;padding:16px 14px 40px;-webkit-overflow-scrolling:touch;}
+.btn{
+  display:inline-block;padding:11px 20px;border-radius:999px;
+  background:var(--caramel);color:#fff;font-size:15px;border:none;
+}
+.btn.ghost{background:var(--paper);color:var(--ink);border:2px solid var(--milk);}
+.btnrow{display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap;}
+
+/* 周报卡片 */
+#weekCard{
+  max-width:460px;margin:0 auto;padding:22px 20px;
+  border:2px solid var(--milk);background:var(--paper);
+  border-radius:24px 30px 26px 32px/30px 24px 32px 26px;
+  animation:feed .7s cubic-bezier(.16,.9,.3,1) both;
+}
+#weekCard h3{margin:0 0 4px;font-size:20px;font-weight:500;}
+#weekCard .sub{font-size:12px;color:var(--milk);margin-bottom:16px;}
+.stat{display:flex;align-items:baseline;gap:6px;margin:6px 0;}
+.stat .n{font-size:30px;font-weight:500;color:var(--caramel);line-height:1.2;}
+.stat .u{font-size:13px;color:var(--milk);}
+.sec{margin-top:18px;padding-top:14px;border-top:1.5px dashed rgba(200,138,90,.4);}
+.sec h4{margin:0 0 10px;font-size:14px;font-weight:500;color:var(--milk);}
+.wall{display:flex;flex-wrap:wrap;gap:8px;}
+.wall .f{
+  width:74px;padding:6px 2px;text-align:center;background:#FDF1E0;
+  border-radius:14px 18px 14px 18px/18px 14px 18px 14px;
+}
+.wall .f svg{width:46px;height:46px;}
+.wall .f span{display:block;font-size:10.5px;color:var(--ink);line-height:1.3;margin-top:2px;}
+.wall .f em{display:block;font-style:normal;font-size:10px;color:var(--caramel);}
+.best{display:flex;align-items:center;gap:10px;}
+.best svg{width:48px;height:48px;}
+.best .t{font-size:16px;font-weight:500;}
+.best .c{font-size:12px;color:var(--milk);}
+.empty{font-size:13px;color:var(--milk);}
+
+/* 历史记录 */
+.daycard{
+  display:flex;align-items:center;gap:12px;padding:12px;margin-bottom:10px;
+  background:var(--paper);border:2px solid var(--milk);
+  border-radius:18px 22px 18px 22px/22px 18px 22px 18px;
+}
+.daycard .thumb{
+  width:56px;height:56px;flex:none;border-radius:14px;overflow:hidden;
+  background:#FDF1E0;display:flex;align-items:center;justify-content:center;
+}
+.daycard .thumb img{width:100%;height:100%;object-fit:cover;}
+.daycard .thumb svg{width:34px;height:34px;}
+.daycard .info{flex:1;min-width:0;}
+.daycard .d{font-size:15px;font-weight:500;}
+.daycard .m{font-size:12px;color:var(--milk);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.daycard svg.mood{width:38px;height:38px;flex:none;}
+
+/* 抠图面板 */
+#cutBody{display:flex;flex-direction:column;align-items:center;gap:12px;}
+#cutCanvas{
+  max-width:100%;border:2px solid var(--milk);border-radius:16px;
+  touch-action:none;background:#FDF1E0;
+}
+.tip{font-size:13px;color:var(--milk);text-align:center;line-height:1.7;}
+
+/* Toast */
+#toast{
+  position:absolute;left:50%;bottom:96px;transform:translateX(-50%) translateY(10px);
+  background:var(--ink);color:#FFF6E9;padding:10px 18px;border-radius:999px;
+  font-size:13.5px;z-index:99;opacity:0;pointer-events:none;transition:.25s;
+  max-width:80vw;text-align:center;
+}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* 动作选择 */
+#actionsheet{
+  position:absolute;inset:0;z-index:80;background:rgba(91,66,52,.35);
+  display:none;align-items:flex-end;
+}
+#actionsheet.show{display:flex;}
+.as-box{
+  width:100%;background:var(--paper);border-radius:24px 24px 0 0;padding:14px;
+  padding-bottom:calc(14px + env(safe-area-inset-bottom));
+}
+.as-box button{
+  display:block;width:100%;text-align:center;padding:15px;font-size:16px;
+  border-bottom:1px solid rgba(200,138,90,.25);
+}
+.as-box button:last-child{border-bottom:none;color:var(--milk);}
+</style>
+</head>
+<body>
+
+<!-- ===== 第 1 幕 开场页 ===== -->
+<div id="intro">
+  <div class="deco" id="introDeco"></div>
+  <div class="type"><span id="typeText"></span><span class="caret" id="caret"></span></div>
+  <div class="skiphint">点一下屏幕可以跳过</div>
+</div>
+
+<!-- ===== 第 2 幕 插画过渡 ===== -->
+<div id="trans">
+  <svg id="walker" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="100" cy="176" rx="46" ry="6" fill="#F7D9A0" opacity=".7"/>
+    <circle cx="100" cy="60" r="19" fill="#F7D9A0" stroke="#5B4234" stroke-width="2.6"/>
+    <circle cx="93" cy="58" r="2.2" fill="#5B4234"/><circle cx="107" cy="58" r="2.2" fill="#5B4234"/>
+    <path d="M94 66 Q100 72 106 66" fill="none" stroke="#5B4234" stroke-width="2.2" stroke-linecap="round"/>
+    <circle cx="86" cy="66" r="3.4" fill="#F0997B" opacity=".65"/>
+    <circle cx="114" cy="66" r="3.4" fill="#F0997B" opacity=".65"/>
+    <path d="M100 79 L100 122" stroke="#5B4234" stroke-width="3.4" stroke-linecap="round"/>
+    <path d="M100 90 L80 100" stroke="#5B4234" stroke-width="3.2" stroke-linecap="round"/>
+    <path d="M100 90 L120 100" stroke="#5B4234" stroke-width="3.2" stroke-linecap="round"/>
+    <path d="M74 100 Q100 128 126 100 Z" fill="#FFFCF5" stroke="#5B4234" stroke-width="2.6" stroke-linejoin="round"/>
+    <path d="M74 100 L126 100" stroke="#5B4234" stroke-width="2.6" stroke-linecap="round"/>
+    <path d="M83 106 Q100 118 117 106" fill="none" stroke="#E8A15D" stroke-width="2.4" stroke-linecap="round"/>
+    <g class="steam"><path d="M92 92 Q87 84 92 76" fill="none" stroke="#C88A5A" stroke-width="2.2" stroke-linecap="round"/></g>
+    <g class="steam" style="animation-delay:.5s"><path d="M108 92 Q113 84 108 76" fill="none" stroke="#C88A5A" stroke-width="2.2" stroke-linecap="round"/></g>
+    <g id="legA"><path d="M100 122 L88 154" stroke="#5B4234" stroke-width="3.4" stroke-linecap="round"/></g>
+    <g id="legB"><path d="M100 122 L112 154" stroke="#5B4234" stroke-width="3.4" stroke-linecap="round"/></g>
+    <path d="M82 158 Q88 150 94 158" fill="none" stroke="#5B4234" stroke-width="3" stroke-linecap="round"/>
+    <path d="M106 158 Q112 150 118 158" fill="none" stroke="#5B4234" stroke-width="3" stroke-linecap="round"/>
+  </svg>
+</div>
+
+<!-- ===== 第 3 幕 主页面 ===== -->
+<div id="app">
+  <div id="topbar">
+    <div>
+      <div class="brand">吃饭日记</div>
+      <div class="date" id="topDate"></div>
+    </div>
+    <button id="backToday">回到今天</button>
+  </div>
+  <div id="papers" class="paper-texture-wrap"></div>
+
+  <div id="toolbar">
+    <button data-act="camera"><span id="icCam"></span>拍照 / 相册</button>
+    <button data-act="add"><span id="icAdd"></span>加一张纸</button>
+    <button data-act="weekly"><span id="icChart"></span>生成周报</button>
+    <button data-act="history"><span id="icHis"></span>历史记录</button>
+    <button data-act="share"><span id="icShare"></span>分享</button>
+  </div>
+</div>
+
+<!-- ===== 周报弹层 ===== -->
+<div class="sheet" id="weekSheet">
+  <header><h2>本周吃饭报告</h2><button class="close" data-close="weekSheet">关闭</button></header>
+  <div class="body"><div id="weekCard"></div>
+    <div class="btnrow">
+      <button class="btn" id="weekShare">导出 / 分享长图</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 历史记录弹层 ===== -->
+<div class="sheet" id="hisSheet">
+  <header><h2>历史记录</h2><button class="close" data-close="hisSheet">关闭</button></header>
+  <div class="body" id="hisList"></div>
+</div>
+
+<!-- ===== 抠图弹层 ===== -->
+<div class="sheet" id="cutSheet">
+  <header><h2>给食物描个边</h2><button class="close" data-close="cutSheet">关闭</button></header>
+  <div class="body">
+    <div id="cutBody">
+      <canvas id="cutCanvas"></canvas>
+      <div class="tip">用手指沿着食物<b>画一圈</b>，松手自动闭合。<br>圈外会被挖空，边缘加上手绘描边，变成贴纸。</div>
+      <div class="btnrow" style="width:100%">
+        <button class="btn ghost" id="cutRedo">重新画</button>
+        <button class="btn ghost" id="cutSkip">不用抠图</button>
+        <button class="btn" id="cutDone">完成</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 动作选择 ===== -->
+<div id="actionsheet">
+  <div class="as-box">
+    <button data-as="cam">拍照</button>
+    <button data-as="lib">从相册选</button>
+    <button data-as="cancel">取消</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<input type="file" id="fileCam" accept="image/*" capture="environment" style="display:none">
+<input type="file" id="fileLib" accept="image/*" style="display:none">
+
+<script>
+/* ==========================================================
+   吃饭日记 · 单文件版
+   数据：localStorage（刷新不丢）
+   插画：全部内联 SVG 手绘，不联网
+   ========================================================== */
+
+/* ---------- 工具 ---------- */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function todayKey(d){d=d||new Date();const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
+function prettyDate(k){const [y,m,d]=k.split('-');return `${+m}月${+d}日`; }
+function weekdayOf(k){const w=['周日','周一','周二','周三','周四','周五','周六'];return w[new Date(k+'T00:00:00').getDay()];}
+let toastTimer;
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('on'),2200);}
+function uid(){return Math.random().toString(36).slice(2,9);}
+
+/* ---------- 手绘插画库（内联 SVG） ---------- */
+// 通用碗底
+const BOWL = '<path d="M9 32 Q30 55 51 32 Z" fill="#FFFCF5" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><path d="M9 32 L51 32" stroke="#5B4234" stroke-width="2.2" stroke-linecap="round"/>';
+function svg(inner,size){return `<svg xmlns="http://www.w3.org/2000/svg" width="${size||60}" height="${size||60}" viewBox="0 0 60 60">${inner}</svg>`;}
+
+// 食物插画：key -> SVG（60x60）
+const ART = {
+  '米饭': BOWL+'<path d="M14 31 Q30 14 46 31 Z" fill="#FFFCF5" stroke="#5B4234" stroke-width="2"/><circle cx="24" cy="26" r="1.6" fill="#E8A15D"/><circle cx="34" cy="24" r="1.6" fill="#E8A15D"/>',
+  '粥':   BOWL+'<path d="M15 31 Q30 20 45 31 Z" fill="#F7D9A0" stroke="#5B4234" stroke-width="1.8"/><circle cx="26" cy="27" r="1.4" fill="#FFFCF5"/><circle cx="35" cy="28" r="1.4" fill="#FFFCF5"/>',
+  '面条': BOWL+'<path d="M16 30 Q22 22 28 30 T40 30 T50 30" fill="none" stroke="#E8A15D" stroke-width="2.2" stroke-linecap="round"/><path d="M15 34 Q22 27 29 34 T43 34" fill="none" stroke="#C88A5A" stroke-width="2" stroke-linecap="round"/>',
+  '米线': BOWL+'<path d="M15 31 Q30 22 45 31" fill="none" stroke="#E8A15D" stroke-width="2.2" stroke-linecap="round"/><path d="M17 35 Q30 28 43 35" fill="none" stroke="#C88A5A" stroke-width="2" stroke-linecap="round"/>',
+  '饺子': '<path d="M8 34 Q16 16 30 18 Q44 20 52 34 Q30 40 8 34 Z" fill="#FFF3E2" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><path d="M14 32 q4 -6 8 0 q4 -6 8 0 q4 -6 8 0" fill="none" stroke="#C88A5A" stroke-width="1.8"/>',
+  '馄饨': BOWL+'<path d="M22 30 q4 -8 8 0 q4 -8 8 0" fill="none" stroke="#5B4234" stroke-width="2" stroke-linecap="round"/><circle cx="26" cy="27" r="1.4" fill="#9CBF8A"/><circle cx="36" cy="27" r="1.4" fill="#9CBF8A"/>',
+  '包子': '<path d="M12 38 Q12 18 30 18 Q48 18 48 38 Z" fill="#FFFDF8" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><path d="M30 20 L30 26" stroke="#5B4234" stroke-width="1.8"/><path d="M20 22 L24 28" stroke="#5B4234" stroke-width="1.8"/><path d="M40 22 L36 28" stroke="#5B4234" stroke-width="1.8"/><path d="M12 38 L48 38" stroke="#5B4234" stroke-width="2.2"/>',
+  '馒头': '<path d="M14 40 Q14 20 30 20 Q46 20 46 40 Z" fill="#FFFCF5" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><path d="M14 40 L46 40" stroke="#5B4234" stroke-width="2.2" stroke-linecap="round"/>',
+  '火锅': '<path d="M10 28 L50 28 Q48 46 30 46 Q12 46 10 28 Z" fill="#E8A15D" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><path d="M8 28 L52 28" stroke="#5B4234" stroke-width="2.6" stroke-linecap="round"/><path d="M20 24 q3 -5 6 0" fill="none" stroke="#C88A5A" stroke-width="2"/><path d="M34 24 q3 -5 6 0" fill="none" stroke="#C88A5A" stroke-width="2"/><circle cx="26" cy="34" r="2.4" fill="#9CBF8A"/><circle cx="36" cy="36" r="2.4" fill="#F0997B"/>',
+  '烧烤': '<path d="M12 48 L48 16" stroke="#5B4234" stroke-width="2.6" stroke-linecap="round"/><rect x="20" y="26" width="12" height="9" rx="3" fill="#C88A5A" stroke="#5B4234" stroke-width="2" transform="rotate(-40 26 30)"/><rect x="30" y="20" width="12" height="9" rx="3" fill="#E8A15D" stroke="#5B4234" stroke-width="2" transform="rotate(-40 36 24)"/>',
+  '炸鸡': '<path d="M34 14 q12 4 10 18 q-2 14 -14 14 q-8 0 -10 -8 q-2 -8 4 -12 Z" fill="#E8A15D" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><path d="M18 40 L12 50" stroke="#5B4234" stroke-width="3" stroke-linecap="round"/><circle cx="10" cy="52" r="3" fill="#FFF3E2" stroke="#5B4234" stroke-width="2"/>',
+  '汉堡': '<path d="M12 26 Q30 12 48 26 Z" fill="#E8A15D" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><rect x="11" y="28" width="38" height="6" rx="3" fill="#9CBF8A" stroke="#5B4234" stroke-width="2"/><rect x="12" y="35" width="36" height="7" rx="3" fill="#C88A5A" stroke="#5B4234" stroke-width="2"/><path d="M12 43 Q30 50 48 43 Z" fill="#F7D9A0" stroke="#5B4234" stroke-width="2.2"/>',
+  '披萨': '<path d="M30 10 L52 48 Q30 54 8 48 Z" fill="#F7D9A0" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><circle cx="26" cy="30" r="3" fill="#E24B4A"/><circle cx="36" cy="36" r="3" fill="#E24B4A"/><circle cx="22" cy="42" r="2.6" fill="#E24B4A"/>',
+  '三明治': '<path d="M12 42 L30 12 L48 42 Z" fill="#F7D9A0" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><path d="M18 36 L42 36" stroke="#9CBF8A" stroke-width="4" stroke-linecap="round"/><path d="M22 28 L38 28" stroke="#E8A15D" stroke-width="3.4" stroke-linecap="round"/>',
+  '寿司': '<rect x="12" y="28" width="36" height="16" rx="7" fill="#FFFCF5" stroke="#5B4234" stroke-width="2.2"/><path d="M12 32 Q30 22 48 32 Q30 36 12 32 Z" fill="#F0997B" stroke="#5B4234" stroke-width="2"/><rect x="26" y="26" width="8" height="20" fill="#5B4234" opacity=".85"/>',
+  '沙拉': BOWL+'<path d="M16 30 q4 -8 10 -2 q6 -8 10 2 q4 -4 8 -1" fill="none" stroke="#9CBF8A" stroke-width="2.4" stroke-linecap="round"/><circle cx="24" cy="28" r="2.4" fill="#E24B4A"/><circle cx="36" cy="30" r="2.4" fill="#F7D9A0"/>',
+  '蔬菜': '<path d="M18 46 Q24 22 34 20 Q30 40 26 46 Z" fill="#9CBF8A" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><path d="M30 24 Q40 14 46 22 Q40 30 32 28 Z" fill="#9CBF8A" stroke="#5B4234" stroke-width="2"/><path d="M20 44 L28 44" stroke="#5B4234" stroke-width="2"/>',
+  '豆腐': '<rect x="16" y="24" width="28" height="22" rx="4" fill="#FFFDF8" stroke="#5B4234" stroke-width="2.2"/><path d="M16 32 L44 32" stroke="#C88A5A" stroke-width="1.6" stroke-dasharray="3 3"/><path d="M24 24 L24 46" stroke="#C88A5A" stroke-width="1.6" stroke-dasharray="3 3"/>',
+  '鸡蛋': '<path d="M14 34 q0 -12 12 -12 q14 0 18 10 q4 10 -6 14 q-14 4 -20 -4 Z" fill="#FFFCF5" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><circle cx="28" cy="32" r="6" fill="#F7D9A0" stroke="#C88A5A" stroke-width="1.8"/>',
+  '牛肉': '<path d="M14 34 q4 -14 20 -12 q16 2 14 14 q-2 12 -18 12 q-16 0 -16 -14 Z" fill="#C88A5A" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><path d="M22 30 q8 -4 16 2" fill="none" stroke="#8C5A38" stroke-width="2" stroke-linecap="round"/>',
+  '鱼':   '<path d="M12 32 q12 -12 26 0 q-12 12 -26 0 Z" fill="#9CBF8A" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><path d="M38 32 L48 24 L48 40 Z" fill="#9CBF8A" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><circle cx="20" cy="30" r="1.8" fill="#5B4234"/>',
+  '虾':   '<path d="M44 20 q-16 -4 -22 10 q-4 12 8 16 q10 4 14 -6" fill="none" stroke="#F0997B" stroke-width="6" stroke-linecap="round"/><path d="M44 20 q-16 -4 -22 10 q-4 12 8 16 q10 4 14 -6" fill="none" stroke="#5B4234" stroke-width="2"/><path d="M46 16 L52 10" stroke="#5B4234" stroke-width="2" stroke-linecap="round"/><path d="M46 16 L54 16" stroke="#5B4234" stroke-width="2" stroke-linecap="round"/>',
+  '奶茶': '<path d="M20 18 L40 18 L37 48 Q30 52 23 48 Z" fill="#FFF3E2" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><path d="M22 30 L38 30 L37 46 Q30 49 23 46 Z" fill="#C88A5A"/><path d="M34 12 L30 22" stroke="#5B4234" stroke-width="3" stroke-linecap="round"/><circle cx="28" cy="42" r="2" fill="#5B4234"/><circle cx="34" cy="44" r="2" fill="#5B4234"/>',
+  '咖啡': '<path d="M18 22 L40 22 L37 42 Q29 45 21 42 Z" fill="#FFFDF8" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><path d="M40 26 q8 2 6 8 q-2 6 -8 4" fill="none" stroke="#5B4234" stroke-width="2.2"/><path d="M25 14 q3 -5 6 0" fill="none" stroke="#C88A5A" stroke-width="2" stroke-linecap="round"/><path d="M33 14 q3 -5 6 0" fill="none" stroke="#C88A5A" stroke-width="2" stroke-linecap="round"/>',
+  '牛奶': '<path d="M22 18 L38 18 L36 46 Q30 49 24 46 Z" fill="#FFFCF5" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><path d="M24 30 L36 30 L35 44 Q30 46 25 44 Z" fill="#FFFDF8" stroke="#C88A5A" stroke-width="1.4"/><path d="M22 18 L38 18" stroke="#5B4234" stroke-width="2.6"/>',
+  '果汁': BOWL+'<path d="M30 30 L30 14" stroke="#9CBF8A" stroke-width="2.4" stroke-linecap="round"/><circle cx="30" cy="12" r="4" fill="#E8A15D" stroke="#5B4234" stroke-width="2"/>',
+  '蛋糕': '<rect x="14" y="30" width="32" height="16" rx="4" fill="#F7D9A0" stroke="#5B4234" stroke-width="2.2"/><path d="M14 30 q6 -8 10 0 q4 -8 10 0 q4 -8 10 0" fill="none" stroke="#FFFDF8" stroke-width="4"/><path d="M30 22 L30 16" stroke="#5B4234" stroke-width="2.2" stroke-linecap="round"/><circle cx="30" cy="13" r="3.4" fill="#E24B4A"/>',
+  '面包': '<path d="M12 32 Q12 18 30 18 Q48 18 48 32 L48 42 Q30 46 12 42 Z" fill="#E8A15D" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><path d="M18 24 q4 -6 8 0" fill="none" stroke="#C88A5A" stroke-width="2"/><path d="M30 22 q4 -6 8 0" fill="none" stroke="#C88A5A" stroke-width="2"/>',
+  '饼干': '<circle cx="30" cy="32" r="16" fill="#E8A15D" stroke="#5B4234" stroke-width="2.2"/><circle cx="24" cy="26" r="2.6" fill="#5B4234"/><circle cx="36" cy="30" r="2.6" fill="#5B4234"/><circle cx="27" cy="38" r="2.6" fill="#5B4234"/><circle cx="37" cy="39" r="2" fill="#5B4234"/>',
+  '甜甜圈': '<circle cx="30" cy="32" r="17" fill="#F7D9A0" stroke="#5B4234" stroke-width="2.2"/><circle cx="30" cy="32" r="6" fill="#FFF6E9" stroke="#5B4234" stroke-width="2"/><path d="M18 24 q6 -6 14 -3" fill="none" stroke="#F0997B" stroke-width="3" stroke-linecap="round"/>',
+  '巧克力': '<rect x="14" y="24" width="32" height="22" rx="3" fill="#8C5A38" stroke="#5B4234" stroke-width="2.2"/><path d="M14 32 L46 32" stroke="#5B4234" stroke-width="1.8"/><path d="M24 24 L24 46" stroke="#5B4234" stroke-width="1.8"/><path d="M36 24 L36 46" stroke="#5B4234" stroke-width="1.8"/>',
+  '冰淇淋': '<path d="M18 30 L42 30 L30 52 Z" fill="#E8A15D" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><path d="M20 30 q4 -10 10 -6 q6 -6 10 6 Z" fill="#FFF3E2" stroke="#5B4234" stroke-width="2.2"/><circle cx="27" cy="24" r="5" fill="#F0997B" stroke="#5B4234" stroke-width="2"/><circle cx="35" cy="25" r="4.4" fill="#F7D9A0" stroke="#5B4234" stroke-width="2"/>',
+  '月饼': '<circle cx="30" cy="32" r="17" fill="#E8A15D" stroke="#5B4234" stroke-width="2.2"/><circle cx="30" cy="32" r="11" fill="none" stroke="#C88A5A" stroke-width="1.8"/><path d="M24 27 q6 -4 12 0" fill="none" stroke="#C88A5A" stroke-width="1.8"/><path d="M24 37 q6 4 12 0" fill="none" stroke="#C88A5A" stroke-width="1.8"/>',
+  '薯条': '<path d="M18 26 L42 26 L38 50 Q30 52 22 50 Z" fill="#E24B4A" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><path d="M22 26 L22 12" stroke="#F7D9A0" stroke-width="4" stroke-linecap="round"/><path d="M30 26 L30 10" stroke="#F7D9A0" stroke-width="4" stroke-linecap="round"/><path d="M38 26 L38 13" stroke="#F7D9A0" stroke-width="4" stroke-linecap="round"/>',
+  '水果': '<path d="M30 20 q-12 -4 -12 10 q0 14 12 18 q12 -4 12 -18 q0 -14 -12 -10 Z" fill="#E24B4A" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><path d="M30 20 L30 14" stroke="#5B4234" stroke-width="2.4" stroke-linecap="round"/><path d="M32 16 q8 -8 12 -4 q-2 6 -10 6 Z" fill="#9CBF8A" stroke="#5B4234" stroke-width="2"/>',
+  '西瓜': '<path d="M10 40 Q30 12 50 40 Z" fill="#F0997B" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><path d="M14 40 Q30 22 46 40" fill="none" stroke="#9CBF8A" stroke-width="3"/><circle cx="26" cy="32" r="1.8" fill="#5B4234"/><circle cx="34" cy="32" r="1.8" fill="#5B4234"/>',
+  '香蕉': '<path d="M14 26 q4 20 20 20 q10 0 12 -8 q-14 -2 -18 -12 Z" fill="#F7D9A0" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><path d="M14 26 L10 20" stroke="#5B4234" stroke-width="2.6" stroke-linecap="round"/>',
+  '草莓': '<path d="M30 46 q-14 -2 -12 -14 q2 -12 12 -14 q10 2 12 14 q2 12 -12 14 Z" fill="#E24B4A" stroke="#5B4234" stroke-width="2.2" stroke-linejoin="round"/><path d="M22 18 q8 -6 16 0 q-8 4 -16 0 Z" fill="#9CBF8A" stroke="#5B4234" stroke-width="2"/><circle cx="26" cy="30" r="1.4" fill="#FFF6E9"/><circle cx="34" cy="34" r="1.4" fill="#FFF6E9"/>',
+  '汤':   BOWL+'<path d="M24 22 q3 -5 6 0" fill="none" stroke="#C88A5A" stroke-width="2" stroke-linecap="round"/><path d="M34 22 q3 -5 6 0" fill="none" stroke="#C88A5A" stroke-width="2" stroke-linecap="round"/><path d="M16 38 q14 6 28 0" fill="none" stroke="#E8A15D" stroke-width="2"/>',
+};
+const DEFAULT_ART = BOWL+'<path d="M16 30 Q30 18 44 30 Z" fill="#F7D9A0" stroke="#5B4234" stroke-width="2"/><circle cx="26" cy="27" r="1.5" fill="#E8A15D"/><circle cx="35" cy="27" r="1.5" fill="#E8A15D"/>';
+
+/* ---------- 常见食物卡路里表（每份，kcal）----------
+   只做「名字模糊匹配」，匹配不到就留空让用户手填，绝不随机生成。 */
+const KCAL = {
+  '米饭':200,'白米饭':200,'炒饭':500,'蛋炒饭':520,'盖饭':600,'黄焖鸡':650,'煲仔饭':650,'米饭一碗':200,
+  '粥':120,'白粥':120,'皮蛋瘦肉粥':180,'小米粥':130,'八宝粥':200,
+  '面条':400,'拉面':500,'牛肉面':550,'炒面':550,'方便面':450,'凉面':400,
+  '米线':450,'螺蛳粉':500,'酸辣粉':450,'肠粉':350,'河粉':450,
+  '饺子':400,'水饺':400,'煎饺':450,'馄饨':300,'小笼包':350,'包子':200,'汤包':320,
+  '馒头':220,'花卷':220,'烧饼':250,'油条':230,'煎饼果子':400,'煎饼':350,'生煎':400,
+  '火锅':800,'麻辣烫':600,'麻辣香锅':700,'冒菜':600,'烧烤':700,'串串':650,'自助餐':900,
+  '炸鸡':600,'汉堡':550,'披萨':800,'薯条':400,'鸡排':550,'炸串':500,'薯片':550,
+  '三明治':350,'寿司':500,'饭团':200,'便当':600,'关东煮':300,'卤肉饭':650,
+  '沙拉':200,'蔬菜':100,'西兰花':50,'菠菜':40,'豆腐':150,'麻婆豆腐':350,'豆花':120,
+  '鸡蛋':80,'煎蛋':110,'炒蛋':150,'番茄炒蛋':180,'水煮蛋':80,'蛋':80,
+  '牛奶':130,'豆浆':120,'酸奶':150,'果汁':120,'奶茶':400,'咖啡':50,'可乐':140,'啤酒':150,'气泡水':0,
+  '苹果':80,'香蕉':100,'橙子':60,'橘子':60,'西瓜':100,'葡萄':80,'草莓':50,'芒果':100,'桃子':60,'梨':80,'猕猴桃':60,
+  '蛋糕':350,'面包':250,'吐司':280,'饼干':200,'巧克力':550,'冰淇淋':250,'布丁':150,'甜甜圈':300,'月饼':400,'蛋挞':250,'华夫饼':300,
+  '牛肉':250,'鸡肉':200,'猪肉':300,'排骨':400,'红烧肉':500,'鱼':200,'虾':150,'蟹':180,'鸡翅':220,'牛排':450,
+  '汤':100,'鸡汤':150,'罗宋汤':180,'味增汤':60,
+  '早餐':400,'午餐':600,'晚餐':600,'宵夜':500,'加餐':250
+};
+// 按名字反查插画 key（优先长的匹配）
+function artKeyOf(name){
+  if(!name) return null;
+  const n = String(name).trim();
+  const keys = Object.keys(ART);
+  let best=null;
+  for(const k of keys){ if(n.indexOf(k)>=0 && (!best || k.length>best.length)) best=k; }
+  return best;
+}
+function artOf(name,size){ const k=artKeyOf(name); return svg(k?ART[k]:DEFAULT_ART,size||60); }
+// 卡路里估算：名字里命中最长的那个词
+function kcalOf(name){
+  if(!name) return null;
+  const n = String(name).trim();
+  let best=null,bestLen=0;
+  for(const k in KCAL){ if(n.indexOf(k)>=0 && k.length>bestLen){ best=k; bestLen=k.length; } }
+  return best? KCAL[best] : null;
+}
+
+/* ---------- 天气图标（手绘） ---------- */
+const WEATHERS = [
+  {k:'sunny',n:'晴',svg:'<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="8" fill="#F7D9A0" stroke="#5B4234" stroke-width="2"/><path d="M20 5 L20 9M20 31 L20 35M5 20 L9 20M31 20 L35 20M9.5 9.5 L12.3 12.3M27.7 27.7 L30.5 30.5M30.5 9.5 L27.7 12.3M12.3 27.7 L9.5 30.5" stroke="#E8A15D" stroke-width="2.2" stroke-linecap="round"/></svg>'},
+  {k:'cloudy',n:'阴',svg:'<svg viewBox="0 0 40 40"><path d="M11 26 Q7 26 7 21 Q7 16 13 16 Q15 11 21 11 Q27 11 28 16 Q34 16 34 21 Q34 26 30 26 Z" fill="#FDF1E0" stroke="#5B4234" stroke-width="2" stroke-linejoin="round"/><circle cx="30" cy="12" r="5" fill="#F7D9A0" stroke="#C88A5A" stroke-width="1.6"/></svg>'},
+  {k:'rain',n:'雨',svg:'<svg viewBox="0 0 40 40"><path d="M11 24 Q7 24 7 19 Q7 14 13 14 Q15 9 21 9 Q27 9 28 14 Q34 14 34 19 Q34 24 30 24 Z" fill="#FDF1E0" stroke="#5B4234" stroke-width="2" stroke-linejoin="round"/><path d="M14 28 L12 34M21 28 L19 34M28 28 L26 34" stroke="#9CBF8A" stroke-width="2.4" stroke-linecap="round"/></svg>'},
+  {k:'snow',n:'雪',svg:'<svg viewBox="0 0 40 40"><path d="M11 24 Q7 24 7 19 Q7 14 13 14 Q15 9 21 9 Q27 9 28 14 Q34 14 34 19 Q34 24 30 24 Z" fill="#FDF1E0" stroke="#5B4234" stroke-width="2" stroke-linejoin="round"/><path d="M16 30 L16 36M13 31.5 L19 34.5M19 31.5 L13 34.5" stroke="#9CBF8A" stroke-width="2" stroke-linecap="round"/><path d="M28 30 L28 36M25 31.5 L31 34.5M31 31.5 L25 34.5" stroke="#9CBF8A" stroke-width="2" stroke-linecap="round"/></svg>'}
+];
+
+/* ---------- 心情表情（5 档，手绘） ---------- */
+function faceSVG(i){
+  const mouths=[
+    'M13 26 q7 -5 14 0',                 // 1 没胃口（下垂）
+    'M14 25 q6 2 12 0',                  // 2 还行（微微）
+    'M14 25 L26 25',                     // 3 平静
+    'M13 24 q7 6 14 0',                  // 4 开心
+    'M12 22 q8 10 16 0'                  // 5 幸福到冒泡
+  ];
+  const extra = i>=4 ? '<path d="M31 8 q2 -3 4 0 q-2 3 -4 0 Z" fill="#F0997B"/><path d="M6 12 q2 -3 4 0 q-2 3 -4 0 Z" fill="#F0997B"/>' : '';
+  const eyes = i===0 ? '<path d="M12 17 L17 17M23 17 L28 17" stroke="#5B4234" stroke-width="2.2" stroke-linecap="round"/>'
+                     : '<circle cx="14.5" cy="17" r="1.9" fill="#5B4234"/><circle cx="25.5" cy="17" r="1.9" fill="#5B4234"/>';
+  return `<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="15" fill="#F7D9A0" stroke="#5B4234" stroke-width="2"/>${eyes}<path d="${mouths[i]}" fill="none" stroke="#5B4234" stroke-width="2.2" stroke-linecap="round"/>${extra}</svg>`;
+}
+const MOODS = [
+  {n:'没胃口'},{n:'还行'},{n:'平静'},{n:'开心'},{n:'幸福到冒泡'}
+].map((m,i)=>({...m,svg:faceSVG(i)}));
+
+/* ---------- 工具栏图标 ---------- */
+const ICONS = {
+  cam:'<svg viewBox="0 0 32 32"><rect x="4" y="9" width="24" height="18" rx="5" fill="#FDF1E0" stroke="#5B4234" stroke-width="2"/><path d="M12 9 L13.5 5 L18.5 5 L20 9" fill="#FDF1E0" stroke="#5B4234" stroke-width="2" stroke-linejoin="round"/><circle cx="16" cy="18" r="5.5" fill="#FFF6E9" stroke="#5B4234" stroke-width="2"/><circle cx="24" cy="14" r="1.4" fill="#E8A15D"/></svg>',
+  add:'<svg viewBox="0 0 32 32"><rect x="7" y="5" width="18" height="22" rx="4" fill="#FDF1E0" stroke="#5B4234" stroke-width="2"/><path d="M16 12 L16 20M12 16 L20 16" stroke="#E8A15D" stroke-width="2.4" stroke-linecap="round"/></svg>',
+  chart:'<svg viewBox="0 0 32 32"><path d="M6 24 L6 12M14 24 L14 7M22 24 L22 16" stroke="#5B4234" stroke-width="3" stroke-linecap="round"/><circle cx="6" cy="11" r="2.4" fill="#E8A15D"/><circle cx="14" cy="6" r="2.4" fill="#E8A15D"/><circle cx="22" cy="15" r="2.4" fill="#E8A15D"/><path d="M4 27 L28 27" stroke="#C88A5A" stroke-width="2" stroke-linecap="round"/></svg>',
+  his:'<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="#FDF1E0" stroke="#5B4234" stroke-width="2"/><path d="M16 9 L16 16 L21 19" fill="none" stroke="#5B4234" stroke-width="2.2" stroke-linecap="round"/></svg>',
+  share:'<svg viewBox="0 0 32 32"><path d="M16 21 L16 6" stroke="#5B4234" stroke-width="2.4" stroke-linecap="round"/><path d="M11 11 L16 6 L21 11" fill="none" stroke="#5B4234" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 17 L7 25 Q7 27 9 27 L23 27 Q25 27 25 25 L25 17" fill="none" stroke="#5B4234" stroke-width="2.4" stroke-linecap="round"/></svg>'
+};
+$('#icCam').innerHTML=ICONS.cam;$('#icAdd').innerHTML=ICONS.add;$('#icChart').innerHTML=ICONS.chart;$('#icHis').innerHTML=ICONS.his;$('#icShare').innerHTML=ICONS.share;
+$('#introDeco').innerHTML = svg(BOWL+'<path d="M16 30 Q30 16 44 30 Z" fill="#F7D9A0" stroke="#5B4234" stroke-width="2"/><path d="M22 24 q3 -6 6 0" fill="none" stroke="#C88A5A" stroke-width="2" stroke-linecap="round"/><circle cx="26" cy="27" r="1.6" fill="#E8A15D"/>',72);
+
+/* ==========================================================
+   数据层：localStorage
+   ========================================================== */
+const STORE='chifan-riji-v1';
+let DB = load();
+function load(){
+  try{ const raw=localStorage.getItem(STORE); if(raw) return JSON.parse(raw); }catch(e){}
+  return {days:{}};
+}
+let saveTimer;
+function save(){
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>{
+    try{ localStorage.setItem(STORE,JSON.stringify(DB)); }
+    catch(e){
+      // 容量满了：丢掉最老的照片再试一次，仍然失败就提示
+      toast('存不下了，正在清理最旧的照片…');
+      const keys=Object.keys(DB.days).sort();
+      for(const k of keys){
+        (DB.days[k].pages||[]).forEach(p=>{ if(p.kind==='photo'){ p.photo=''; p.sticker=''; } });
+        try{ localStorage.setItem(STORE,JSON.stringify(DB)); return; }catch(e2){}
+      }
+      toast('本地空间不足，旧照片已清理');
+    }
+  },250);
+}
+function defaultPages(){
+  return [
+    {id:uid(),kind:'info',title:'第一张 · 今天吃了什么',food:'',weather:'sunny',mood:3,kcal:'',kcalAuto:false},
+    {id:uid(),kind:'photo',title:'第二张 · 食物的画像',photo:'',sticker:''},
+    {id:uid(),kind:'feeling',title:'第三张 · 我的感受',text:''}
+  ];
+}
+function getDay(k){ if(!DB.days[k]) DB.days[k]={pages:defaultPages()}; if(!DB.days[k].pages) DB.days[k].pages=defaultPages(); return DB.days[k]; }
+
+let currentKey = todayKey();
+
+/* ==========================================================
+   第 1 幕：开场打字机
+   ========================================================== */
+const INTRO_TEXT='生活会奖励每一个大口吃饭的人！！！请把自己的小生活过得有声有色';
+let introFinished=false, transStarted=false;
+function goTrans(){ if(transStarted) return; transStarted=true; startTrans(); }
+function runIntro(){
+  const box=$('#typeText'); let i=0;
+  const timer=setInterval(()=>{
+    i++;
+    box.textContent = INTRO_TEXT.slice(0,i);
+    if(i>=INTRO_TEXT.length){
+      clearInterval(timer);
+      introFinished=true;
+      $('#caret').style.display='none';
+      setTimeout(goTrans,1500);   // 打完停留 1.5 秒自动进入下一幕
+    }
+  },95);
+  // 点一下屏幕随时跳过
+  $('#intro').addEventListener('click',()=>{
+    if(transStarted) return;
+    clearInterval(timer);
+    if(!introFinished){ box.textContent=INTRO_TEXT; $('#caret').style.display='none'; }
+    goTrans();
+  });
+}
+/* ==========================================================
+   第 2 幕：插画过渡 → 第 3 幕
+   ========================================================== */
+function startTrans(){
+  const t=$('#trans');
+  t.classList.add('show');
+  setTimeout(()=>{
+    t.classList.remove('show');
+    $('#intro').classList.add('out');
+    setTimeout(()=>$('#intro').style.display='none',520);
+    $('#app').classList.add('show');
+    renderAll(true);
+  },1200);
+}
+
+/* ==========================================================
+   第 3 幕：主记录页
+   ========================================================== */
+const papersEl=$('#papers');
+let feedAll=false; // 首次进入时全部纸张依次吐出
+
+function renderAll(first){
+  feedAll = !!first;
+  $('#topDate').textContent = prettyDate(currentKey)+' · '+weekdayOf(currentKey);
+  $('#backToday').classList.toggle('on', currentKey!==todayKey());
+  renderPapers();
+}
+function renderPapers(){
+  const day=getDay(currentKey);
+  papersEl.innerHTML='';
+  day.pages.forEach((p,idx)=>{
+    const el=buildPaper(p,idx);
+    if(feedAll){ el.style.animationDelay=(idx*0.16)+'s'; }
+    papersEl.appendChild(el);
+  });
+  if(feedAll){ feedAll=false; }
+}
+function buildPaper(p,idx){
+  const el=document.createElement('div');
+  el.className='paper paper-texture';
+  el.dataset.id=p.id;
+  if(p.kind==='info') el.innerHTML=infoHTML(p);
+  else if(p.kind==='photo') el.innerHTML=photoHTML(p);
+  else if(p.kind==='feeling') el.innerHTML=feelingHTML(p);
+  else el.innerHTML=blankHTML(p);
+  return el;
+}
+function infoHTML(p){
+  const khint = p.kcal!=='' && p.kcal!=null
+    ? (p.kcalAuto?'按常见分量估算的，点数字可以自己改':'你手填的，随时能改')
+    : '填上食物名会自动估算，查不到就点数字手填';
+  return `
+    <div class="p-title" contenteditable="true" data-f="title">${esc(p.title)}</div>
+    <div class="row"><span class="label">食物名字</span>
+      <span class="field" contenteditable="true" data-f="food" data-ph="比如：番茄炒蛋">${esc(p.food)}</span></div>
+    <div class="row"><span class="label">今天的天气</span>
+      <span class="picker">${WEATHERS.map(w=>`<button class="${p.weather===w.k?'on':''}" data-w="${w.k}" title="${w.n}">${w.svg}</button>`).join('')}</span></div>
+    <div class="row"><span class="label">现在的心情</span>
+      <span class="picker">${MOODS.map((m,i)=>`<button class="${p.mood===i?'on':''}" data-m="${i}" title="${m.n}">${m.svg}</button>`).join('')}</span></div>
+    <div class="row"><span class="label">卡路里</span>
+      <span class="field num" contenteditable="true" data-f="kcal" data-ph="手填">${p.kcal!==''&&p.kcal!=null?esc(String(p.kcal)):''}</span>
+      <span class="unit">kcal</span></div>
+    <div class="hint">${khint}</div>`;
+}
+function photoHTML(p){
+  const top = p.photo
+    ? `<div class="photo-frame"><img src="${p.photo}" alt="食物照片"></div>`
+    : `<div class="slot" data-slot="photo">还没有照片<br>点下面「拍照 / 从相册选」</div>`;
+  const bottom = p.sticker
+    ? `<div class="sticker-wrap"><img src="${p.sticker}" alt="食物贴纸"></div>`
+    : `<div class="slot" data-slot="sticker">抠图 + 描边效果<br>点下面「抠图描边」，用手指沿着食物画一圈</div>`;
+  return `
+    <div class="p-title" contenteditable="true" data-f="title">${esc(p.title)}</div>
+    ${top}
+    <div style="height:12px"></div>
+    ${bottom}
+    <div class="slotbtns">
+      <button data-act="upload">拍照 / 从相册选</button>
+      <button class="primary" data-act="cut" ${p.photo?'':'disabled style="opacity:.5"'}>抠图描边</button>
+    </div>`;
+}
+function feelingHTML(p){
+  return `
+    <div class="p-title" contenteditable="true" data-f="title">${esc(p.title)}</div>
+    <div class="feeling" contenteditable="true" data-f="text" data-ph="今天这顿饭，想说点什么……">${esc(p.text)}</div>`;
+}
+function blankHTML(p){
+  return `
+    <button class="del" data-act="del">撕掉</button>
+    <div class="p-title" contenteditable="true" data-f="title">${esc(p.title||'新的一页')}</div>
+    <div class="feeling" contenteditable="true" data-f="text" data-ph="想写点什么都可以……">${esc(p.text||'')}</div>`;
+}
+
+/* --- 编辑：统一事件委托 --- */
+papersEl.addEventListener('input',e=>{
+  const t=e.target, f=t.dataset.f;
+  if(!f) return;
+  const paper=t.closest('.paper'); if(!paper) return;
+  const day=getDay(currentKey);
+  const p=day.pages.find(x=>x.id===paper.dataset.id); if(!p) return;
+  p[f]=t.textContent.trim();
+  if(f==='food'){
+    // 只在用户没手动改过卡路里时，自动估算
+    if(!p.kcalManual){
+      const v=kcalOf(p.food);
+      if(v!=null){ p.kcal=v; p.kcalAuto=true; }
+      else { p.kcal=''; p.kcalAuto=false; }
+    }
+    // 局部刷新这张纸（保住输入焦点：只改卡路里那格和提示）
+    const num=paper.querySelector('[data-f="kcal"]');
+    if(num) num.textContent = (p.kcal!==''&&p.kcal!=null)?String(p.kcal):'';
+    const hint=paper.querySelector('.hint');
+    if(hint) hint.textContent = (p.kcal!==''&&p.kcal!=null)
+      ? (p.kcalAuto?'按常见分量估算的，点数字可以自己改':'你手填的，随时能改')
+      : '没查到这种食物，点数字手填吧';
+  }
+  if(f==='kcal'){ p.kcalManual=true; p.kcalAuto=false; }
+  save();
+});
+papersEl.addEventListener('click',e=>{
+  const btn=e.target.closest('button[data-w],button[data-m],button[data-act]');
+  if(!btn) return;
+  const paper=btn.closest('.paper'); if(!paper) return;
+  const day=getDay(currentKey);
+  const p=day.pages.find(x=>x.id===paper.dataset.id); if(!p) return;
+  if(btn.dataset.w){ p.weather=btn.dataset.w; refreshPaper(p); save(); return; }
+  if(btn.dataset.m){ p.mood=+btn.dataset.m; refreshPaper(p); save(); return; }
+  const act=btn.dataset.act;
+  if(act==='upload'){ pendingPhotoId=p.id; $('#actionsheet').classList.add('show'); return; }
+  if(act==='cut'){ openCutter(p); return; }
+  if(act==='del'){
+    day.pages=day.pages.filter(x=>x.id!==p.id);
+    renderPapers(); save(); toast('撕掉啦'); return;
+  }
+});
+function refreshPaper(p){
+  const el=papersEl.querySelector('.paper[data-id="'+p.id+'"]');
+  if(!el) return;
+  const idx=Array.from(papersEl.children).indexOf(el);
+  const fresh=buildPaper(p,idx);
+  fresh.style.animation='none';
+  el.replaceWith(fresh);
+}
+
+/* --- 工具栏 --- */
+$('#toolbar').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  const act=b.dataset.act;
+  if(act==='camera'){
+    const day=getDay(currentKey);
+    const pp=day.pages.find(x=>x.kind==='photo');
+    if(!pp){ toast('没找到照片纸'); return; }
+    pendingPhotoId=pp.id; $('#actionsheet').classList.add('show');
+  }
+  if(act==='add'){
+    const day=getDay(currentKey);
+    day.pages.push({id:uid(),kind:'blank',title:'新的一页',text:''});
+    renderPapers(); save();
+    setTimeout(()=>papersEl.scrollTo({top:papersEl.scrollHeight,behavior:'smooth'}),60);
+  }
+  if(act==='weekly'){ openWeekly(); }
+  if(act==='history'){ openHistory(); }
+  if(act==='share'){ openWeekly(true); }
+});
+$('#backToday').addEventListener('click',()=>{ currentKey=todayKey(); renderAll(true); toast('回到今天'); });
+$$('[data-close]').forEach(b=>b.addEventListener('click',()=>{
+  $( '#'+b.dataset.close ).classList.remove('show');
+}));
+
+/* ==========================================================
+   拍照 / 相册
+   ========================================================== */
+let pendingPhotoId=null;
+$('#actionsheet').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  const v=b.dataset.as;
+  $('#actionsheet').classList.remove('show');
+  if(v==='cam') $('#fileCam').click();
+  if(v==='lib') $('#fileLib').click();
+});
+function handleFile(file){
+  if(!file||!pendingPhotoId) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const img=new Image();
+    img.onload=()=>{
+      // 压缩：最长边 800，JPEG 0.72，避免 localStorage 爆掉
+      const max=800, s=Math.min(1,max/Math.max(img.width,img.height));
+      const c=document.createElement('canvas');
+      c.width=Math.round(img.width*s); c.height=Math.round(img.height*s);
+      const cx=c.getContext('2d');
+      cx.fillStyle='#FFFCF5'; cx.fillRect(0,0,c.width,c.height);
+      cx.drawImage(img,0,0,c.width,c.height);
+      const day=getDay(currentKey);
+      const p=day.pages.find(x=>x.id===pendingPhotoId);
+      if(p){ p.photo=c.toDataURL('image/jpeg',0.72); }
+      pendingPhotoId=null;
+      renderPapers(); save();
+      toast('照片放好啦，可以点「抠图描边」');
+    };
+    img.onerror=()=>toast('这张图片打不开');
+    img.src=reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+$('#fileCam').addEventListener('change',e=>handleFile(e.target.files[0]));
+$('#fileLib').addEventListener('change',e=>handleFile(e.target.files[0]));
+
+/* ==========================================================
+   抠图 + 描边（手动画轮廓，纯前端真实现）
+   ========================================================== */
+const cutCanvas=$('#cutCanvas'), cutCtx=cutCanvas.getContext('2d');
+let cutPage=null, cutImg=null, cutPts=[], cutDrawing=false, cutBox={x:0,y:0,w:0,h:0};
+function openCutter(p){
+  if(!p.photo){ toast('先上传一张照片'); return; }
+  cutPage=p; cutPts=[];
+  const img=new Image();
+  img.onload=()=>{
+    cutImg=img;
+    const availW=Math.min(window.innerWidth-40,460);
+    const s=availW/img.width;
+    const dispW=Math.round(img.width*s), dispH=Math.round(img.height*s);
+    const maxH=window.innerHeight-260;
+    const s2=maxH>0&&dispH>maxH? maxH/dispH : 1;
+    cutCanvas.style.width=(dispW*s2)+'px';
+    cutCanvas.style.height=(dispH*s2)+'px';
+    const dpr=Math.min(2,window.devicePixelRatio||1);
+    cutCanvas.width=Math.round(dispW*s2*dpr); cutCanvas.height=Math.round(dispH*s2*dpr);
+    cutCtx.setTransform(dpr,0,0,dpr,0,0);
+    cutBox={w:dispW*s2,h:dispH*s2};
+    drawCut();
+    $('#cutSheet').classList.add('show');
+  };
+  img.src=p.photo;
+}
+function drawCut(){
+  if(!cutImg) return;
+  cutCtx.clearRect(0,0,cutBox.w,cutBox.h);
+  cutCtx.drawImage(cutImg,0,0,cutBox.w,cutBox.h);
+  // 已画的轮廓
+  if(cutPts.length>1){
+    cutCtx.save();
+    cutCtx.beginPath();
+    cutPts.forEach((pt,i)=> i?cutCtx.lineTo(pt.x,pt.y):cutCtx.moveTo(pt.x,pt.y));
+    cutCtx.strokeStyle='#E8A15D'; cutCtx.lineWidth=3; cutCtx.lineJoin='round'; cutCtx.lineCap='round';
+    cutCtx.setLineDash([7,5]); cutCtx.stroke();
+    cutCtx.restore();
+  }
+}
+function cutPos(ev){
+  const r=cutCanvas.getBoundingClientRect();
+  const t=ev.touches?ev.touches[0]:ev;
+  return {x:t.clientX-r.left, y:t.clientY-r.top};
+}
+cutCanvas.addEventListener('pointerdown',e=>{ cutDrawing=true; cutPts=[cutPos(e)]; cutCanvas.setPointerCapture(e.pointerId); drawCut(); });
+cutCanvas.addEventListener('pointermove',e=>{ if(!cutDrawing) return; cutPts.push(cutPos(e)); drawCut(); });
+cutCanvas.addEventListener('pointerup',e=>{ if(!cutDrawing) return; cutDrawing=false; drawCut(); });
+cutCanvas.addEventListener('pointercancel',()=>{cutDrawing=false;});
+$('#cutRedo').addEventListener('click',()=>{ cutPts=[]; drawCut(); });
+$('#cutSkip').addEventListener('click',()=>{
+  if(cutPage){ cutPage.sticker=''; }
+  $('#cutSheet').classList.remove('show'); renderPapers(); save(); toast('保留原图，加个手绘相框');
+});
+$('#cutDone').addEventListener('click',()=>{
+  if(!cutPage||!cutImg) return;
+  if(cutPts.length<8){ toast('沿着食物画一圈再点完成'); return; }
+  // 输出画布：最长边 640
+  const s=Math.min(1,640/Math.max(cutImg.width,cutImg.height));
+  const outW=Math.round(cutImg.width*s), outH=Math.round(cutImg.height*s);
+  const oc=document.createElement('canvas'); oc.width=outW; oc.height=outH;
+  const o=oc.getContext('2d');
+  // 显示坐标 -> 输出坐标
+  const k=outW/cutBox.w;
+  const path=new Path2D();
+  cutPts.forEach((pt,i)=>{ const x=pt.x*k, y=pt.y*k; i?path.lineTo(x,y):path.moveTo(x,y); });
+  path.closePath();
+  // 1) 圈内画原图，圈外透明
+  o.save(); o.clip(path); o.drawImage(cutImg,0,0,outW,outH); o.restore();
+  // 2) 手绘描边：先粗白边，再深棕细线
+  o.lineJoin='round'; o.lineCap='round';
+  o.strokeStyle='#FFFCF5'; o.lineWidth=Math.max(8,14*(outW/640)*1.6); o.stroke(path);
+  o.strokeStyle='#5B4234'; o.lineWidth=Math.max(3,5*(outW/640)*1.6); o.stroke(path);
+  cutPage.sticker=oc.toDataURL('image/png');
+  $('#cutSheet').classList.remove('show');
+  renderPapers(); save(); toast('贴纸做好啦');
+});
+
+/* ==========================================================
+   周报
+   ========================================================== */
+const WEEK_TARGET=10500; // 参考值：约 1500 kcal/天，仅用于画圆环比例
+function collectWeek(){
+  const days=[];
+  const base=new Date(currentKey+'T00:00:00');
+  for(let i=6;i>=0;i--){
+    const d=new Date(base); d.setDate(d.getDate()-i);
+    const k=todayKey(d);
+    if(DB.days[k]) days.push({k, day:DB.days[k]});
+  }
+  const foodMap={}; // name -> count
+  let totalKcal=0, hasKcal=false;
+  const moodSeries=[];
+  days.forEach(({k,day})=>{
+    let dayKcal=0, mood=null;
+    (day.pages||[]).forEach(p=>{
+      if(p.kind==='info'){
+        if(p.food && p.food.trim()){ const n=p.food.trim(); foodMap[n]=(foodMap[n]||0)+1; }
+        if(p.kcal!==''&&p.kcal!=null&&!isNaN(+p.kcal)){ dayKcal+=+p.kcal; hasKcal=true; }
+        if(typeof p.mood==='number') mood=p.mood;
+      }
+    });
+    totalKcal+=dayKcal;
+    moodSeries.push({k, mood});
+  });
+  const foods=Object.keys(foodMap).map(n=>({name:n,count:foodMap[n]})).sort((a,b)=>b.count-a.count);
+  const best=foods[0]||null;
+  return {days,foods,totalKcal,hasKcal,best,moodSeries};
+}
+function ringSVG(ratio){
+  const R=42, C=2*Math.PI*R, on=Math.max(0,Math.min(1,ratio))*C;
+  return `<svg viewBox="0 0 100 100" width="120" height="120">
+    <circle cx="50" cy="50" r="${R}" fill="none" stroke="#FDF1E0" stroke-width="12"/>
+    <circle cx="50" cy="50" r="${R}" fill="none" stroke="#E8A15D" stroke-width="12" stroke-linecap="round"
+      stroke-dasharray="${on.toFixed(1)} ${(C-on).toFixed(1)}" transform="rotate(-90 50 50)"/>
+    <text x="50" y="47" text-anchor="middle" font-size="17" fill="#E8A15D" font-family="sans-serif">${Math.round(ratio*100)}%</text>
+    <text x="50" y="63" text-anchor="middle" font-size="10" fill="#C88A5A" font-family="sans-serif">周目标</text>
+  </svg>`;
+}
+function moodLineSVG(series){
+  if(!series.length) return '';
+  const W=300,H=70,pad=18;
+  const step=series.length>1?(W-pad*2)/(series.length-1):0;
+  const pts=series.map((s,i)=>({
+    x:pad+i*step,
+    y: H-pad - (s.mood==null?2:(s.mood/4))*(H-pad*2-8)
+  }));
+  let d='';
+  pts.forEach((p,i)=>{ d += (i?' L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1); });
+  const dots=pts.map((p,i)=>{
+    const m=series[i].mood;
+    return m==null? '' : `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#F7D9A0" stroke="#5B4234" stroke-width="2"/>`;
+  }).join('');
+  const labels=series.map((s,i)=>`<text x="${pts[i].x.toFixed(1)}" y="${H-3}" text-anchor="middle" font-size="9" fill="#C88A5A" font-family="sans-serif">${s.k.slice(5).replace('-','/')}</text>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="90" preserveAspectRatio="none">
+    <path d="${d}" fill="none" stroke="#E8A15D" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    ${dots}${labels}
+  </svg>`;
+}
+let weekData=null;
+function openWeekly(autoShare){
+  weekData=collectWeek();
+  const w=weekData;
+  const wall = w.foods.length
+    ? `<div class="wall">${w.foods.slice(0,12).map(f=>`<div class="f">${artOf(f.name,46)}<span>${esc(f.name)}</span><em>×${f.count}</em></div>`).join('')}</div>`
+    : `<div class="empty">这一周还没有记录食物，先去第一张纸写点什么吧。</div>`;
+  const bestHTML = w.best
+    ? `<div class="best">${artOf(w.best.name,48)}<div><div class="t">${esc(w.best.name)}</div><div class="c">本周吃了 ${w.best.count} 次 · 本周最佳</div></div></div>`
+    : `<div class="empty">还没有足够的记录。</div>`;
+  const kcalHTML = w.hasKcal
+    ? `<div style="display:flex;align-items:center;gap:14px">
+         ${ringSVG(w.totalKcal/WEEK_TARGET)}
+         <div><div class="stat"><span class="n">${w.totalKcal}</span><span class="u">kcal</span></div>
+         <div class="empty">按每天约 1500 kcal 作为参考</div></div>
+       </div>`
+    : `<div class="empty">还没填卡路里，写上食物名会自动估算。</div>`;
+  const range = w.days.length? `${w.days[0].k.replace(/-/g,'/')} – ${w.days[w.days.length-1].k.replace(/-/g,'/')}` : '最近 7 天';
+  $('#weekCard').innerHTML=`
+    <h3>本周吃饭报告</h3>
+    <div class="sub">${range} · 共记录 ${w.days.length} 天</div>
+    <div class="sec"><h4>这周吃了 ${w.foods.length} 种食物</h4>${wall}</div>
+    <div class="sec"><h4>卡路里</h4>${kcalHTML}</div>
+    <div class="sec"><h4>本周最佳</h4>${bestHTML}</div>
+    <div class="sec"><h4>一周心情</h4>${w.moodSeries.length?moodLineSVG(w.moodSeries):'<div class="empty">还没有心情记录。</div>'}</div>
+    <div class="sec" style="text-align:center;border-top:none"><div class="empty">生活会奖励每一个大口吃饭的人</div></div>`;
+  $('#weekSheet').classList.add('show');
+  if(autoShare) setTimeout(()=>shareReport(),700);
+}
+$('#weekShare').addEventListener('click',()=>shareReport());
+
+/* ==========================================================
+   分享：canvas 竖版长图 + navigator.share
+   ========================================================== */
+function svgToImage(s,size){
+  return new Promise((res,rej)=>{
+    const img=new Image();
+    img.onload=()=>res(img);
+    img.onerror=()=>rej(new Error('svg fail'));
+    img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s);
+  });
+}
+function roundRect(c,x,y,w,h,r){
+  c.beginPath();
+  c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
+  c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath();
+}
+async function drawReportCanvas(){
+  const w=weekData||collectWeek();
+  const C={
+    cream:'#FFF6E9', paper:'#FFFCF5', ink:'#5B4234', milk:'#C88A5A',
+    caramel:'#E8A15D', butter:'#F7D9A0', matcha:'#9CBF8A'
+  };
+  const W=750, pad=54;
+  const showFoods=w.foods.slice(0,12);
+  const perRow=3, rows=Math.ceil(showFoods.length/perRow);
+  const wallH = rows? rows*150 : 60;
+  const H = 300 + wallH + 300 + 200 + 230 + 120;
+  const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+  const c=cv.getContext('2d');
+  c.fillStyle=C.cream; c.fillRect(0,0,W,H);
+  // 卡片底
+  c.fillStyle=C.paper; c.strokeStyle=C.milk; c.lineWidth=4;
+  roundRect(c,pad*0.5,pad*0.5,W-pad,H-pad,34); c.fill(); c.stroke();
+
+  let y=pad+40;
+  c.fillStyle=C.ink; c.font='500 40px "PingFang SC","Microsoft YaHei",sans-serif';
+  c.textAlign='center'; c.fillText('本周吃饭报告',W/2,y); y+=40;
+  c.fillStyle=C.milk; c.font='400 20px "PingFang SC",sans-serif';
+  const range = w.days.length? `${w.days[0].k.replace(/-/g,'/')} – ${w.days[w.days.length-1].k.replace(/-/g,'/')} · 共 ${w.days.length} 天` : '最近 7 天';
+  c.fillText(range,W/2,y); y+=34;
+
+  // 分隔
+  function sep(yy){ c.strokeStyle=C.milk; c.lineWidth=2; c.setLineDash([8,8]); c.beginPath(); c.moveTo(pad+16,yy); c.lineTo(W-pad-16,yy); c.stroke(); c.setLineDash([]); }
+  sep(y); y+=42;
+
+  // 食物墙
+  c.textAlign='left'; c.fillStyle=C.milk; c.font='400 22px "PingFang SC",sans-serif';
+  c.fillText(`这周吃了 ${w.foods.length} 种食物`,pad+16,y); y+=24;
+  if(showFoods.length){
+    const cellW=(W-pad*2-32)/perRow;
+    for(let i=0;i<showFoods.length;i++){
+      const r=Math.floor(i/perRow), col=i%perRow;
+      const cx=pad+16+col*cellW+cellW/2, cy=y+r*150+52;
+      try{
+        const im=await svgToImage(artOf(showFoods[i].name,100),100);
+        c.drawImage(im,cx-46,cy-46,92,92);
+      }catch(e){}
+      c.textAlign='center'; c.fillStyle=C.ink; c.font='400 19px "PingFang SC",sans-serif';
+      const nm=showFoods[i].name.length>5?showFoods[i].name.slice(0,5)+'…':showFoods[i].name;
+      c.fillText(nm,cx,cy+66);
+      c.fillStyle=C.caramel; c.font='400 16px "PingFang SC",sans-serif';
+      c.fillText('×'+showFoods[i].count,cx,cy+90);
+    }
+    y+=rows*150+10;
+  }else{
+    c.textAlign='center'; c.fillStyle=C.milk; c.font='400 20px "PingFang SC",sans-serif';
+    c.fillText('这一周还没有记录食物',W/2,y+30); y+=60;
+  }
+
+  // 卡路里圆环
+  sep(y); y+=46;
+  c.textAlign='left'; c.fillStyle=C.milk; c.font='400 22px "PingFang SC",sans-serif';
+  c.fillText('卡路里',pad+16,y); y+=20;
+  const cx0=pad+90, cy0=y+70, R=52;
+  c.strokeStyle=C.butter; c.lineWidth=14; c.beginPath(); c.arc(cx0,cy0,R,0,Math.PI*2); c.stroke();
+  const ratio=Math.max(0,Math.min(1,w.totalKcal/WEEK_TARGET));
+  c.strokeStyle=C.caramel; c.lineWidth=14; c.lineCap='round';
+  c.beginPath(); c.arc(cx0,cy0,R,-Math.PI/2,-Math.PI/2+ratio*Math.PI*2); c.stroke();
+  c.textAlign='center'; c.fillStyle=C.caramel; c.font='500 30px "PingFang SC",sans-serif';
+  c.fillText(Math.round(ratio*100)+'%',cx0,cy0+8);
+  c.fillStyle=C.ink; c.font='500 42px "PingFang SC",sans-serif'; c.textAlign='left';
+  c.fillText(String(w.totalKcal),cx0+R+34,cy0+4);
+  c.fillStyle=C.milk; c.font='400 20px "PingFang SC",sans-serif';
+  c.fillText('kcal',cx0+R+34+ (String(w.totalKcal).length*26) +8,cy0+4);
+  c.fillStyle=C.milk; c.font='400 17px "PingFang SC",sans-serif';
+  c.fillText('按每天约 1500 kcal 作为参考',cx0+R+34,cy0+36);
+  y+=160;
+
+  // 本周最佳
+  sep(y); y+=46;
+  c.fillStyle=C.milk; c.font='400 22px "PingFang SC",sans-serif'; c.textAlign='left';
+  c.fillText('本周最佳',pad+16,y); y+=34;
+  if(w.best){
+    try{
+      const im=await svgToImage(artOf(w.best.name,100),100);
+      c.drawImage(im,pad+16,y-10,84,84);
+    }catch(e){}
+    c.fillStyle=C.ink; c.font='500 30px "PingFang SC",sans-serif';
+    c.fillText(w.best.name,pad+116,y+34);
+    c.fillStyle=C.milk; c.font='400 19px "PingFang SC",sans-serif';
+    c.fillText(`本周吃了 ${w.best.count} 次`,pad+116,y+66);
+  }else{
+    c.fillStyle=C.milk; c.font='400 20px "PingFang SC",sans-serif';
+    c.fillText('还没有足够的记录',pad+16,y+24);
+  }
+  y+=120;
+
+  // 心情折线
+  sep(y); y+=46;
+  c.fillStyle=C.milk; c.font='400 22px "PingFang SC",sans-serif';
+  c.fillText('一周心情',pad+16,y); y+=24;
+  if(w.moodSeries.length){
+    const x0=pad+30, x1=W-pad-30, yBase=y+90, hh=70;
+    const n=w.moodSeries.length, step=n>1?(x1-x0)/(n-1):0;
+    // 底线
+    c.strokeStyle=C.butter; c.lineWidth=3; c.setLineDash([6,6]);
+    c.beginPath(); c.moveTo(x0,yBase); c.lineTo(x1,yBase); c.stroke(); c.setLineDash([]);
+    const pts=w.moodSeries.map((s,i)=>({x:x0+i*step, y: yBase-(s.mood==null?0:(s.mood/4))*hh}));
+    c.strokeStyle=C.caramel; c.lineWidth=4; c.lineJoin='round'; c.lineCap='round';
+    c.beginPath(); pts.forEach((p,i)=> i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y)); c.stroke();
+    pts.forEach((p,i)=>{
+      if(w.moodSeries[i].mood==null) return;
+      c.fillStyle=C.butter; c.beginPath(); c.arc(p.x,p.y,7,0,Math.PI*2); c.fill();
+      c.strokeStyle=C.ink; c.lineWidth=2.5; c.stroke();
+    });
+    c.fillStyle=C.milk; c.font='400 15px "PingFang SC",sans-serif'; c.textAlign='center';
+    w.moodSeries.forEach((s,i)=>{ c.fillText(s.k.slice(5).replace('-','/'),pts[i].x,yBase+26); });
+    y+=130;
+  }else{ y+=40; }
+
+  // 落款
+  c.textAlign='center'; c.fillStyle=C.milk; c.font='400 21px "PingFang SC",sans-serif';
+  c.fillText('生活会奖励每一个大口吃饭的人',W/2,H-pad-40);
+  return cv;
+}
+async function shareReport(){
+  toast('正在生成长图…');
+  try{
+    const cv=await drawReportCanvas();
+    const blob=await new Promise(r=>cv.toBlob(r,'image/png'));
+    const file=new File([blob],'吃饭周报.png',{type:'image/png'});
+    // 1) 尝试系统分享（支持带图的话）
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      try{ await navigator.share({files:[file],title:'本周吃饭报告',text:'生活会奖励每一个大口吃饭的人'}); return; }
+      catch(e){ if(e && e.name==='AbortError') return; }
+    }else if(navigator.share){
+      try{ await navigator.share({title:'本周吃饭报告',text:'生活会奖励每一个大口吃饭的人'}); }catch(e){}
+    }
+    // 2) 兜底：直接下载
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download='吃饭周报.png'; document.body.appendChild(a); a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1500);
+    toast('长图已保存到本地');
+  }catch(err){
+    toast('生成失败：'+(err&&err.message?err.message:'未知错误'));
+  }
+}
+
+/* ==========================================================
+   历史记录
+   ========================================================== */
+function openHistory(){
+  const keys=Object.keys(DB.days).sort().reverse();
+  if(!keys.length){ $('#hisList').innerHTML='<div class="empty" style="text-align:center;padding:40px">还没有任何记录。</div>'; $('#hisSheet').classList.add('show'); return; }
+  $('#hisList').innerHTML=keys.map(k=>{
+    const day=DB.days[k];
+    const info=(day.pages||[]).find(p=>p.kind==='info')||{};
+    const photo=(day.pages||[]).find(p=>p.kind==='photo')||{};
+    const thumb = (photo.sticker||photo.photo)
+      ? `<img src="${photo.sticker||photo.photo}" alt="">`
+      : artOf(info.food||'',34);
+    const mood = (typeof info.mood==='number')? MOODS[info.mood].svg : '';
+    const foodTxt = info.food? esc(info.food) : '还没写吃什么';
+    const kcalTxt = (info.kcal!==''&&info.kcal!=null)? ` · ${info.kcal} kcal` : '';
+    return `<div class="daycard" data-k="${k}">
+      <div class="thumb">${thumb}</div>
+      <div class="info"><div class="d">${prettyDate(k)} · ${weekdayOf(k)}</div><div class="m">${foodTxt}${kcalTxt}</div></div>
+      ${mood?`<svg class="mood" viewBox="0 0 40 40">${mood.replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'')}</svg>`:''}
+    </div>`;
+  }).join('');
+  $('#hisSheet').classList.add('show');
+}
+$('#hisList').addEventListener('click',e=>{
+  const card=e.target.closest('.daycard'); if(!card) return;
+  currentKey=card.dataset.k;
+  $('#hisSheet').classList.remove('show');
+  renderAll(true);
+  toast('可以回看，也能继续改');
+});
+
+/* ==========================================================
+   启动
+   ========================================================== */
+getDay(todayKey());
+renderAll(true);
+runIntro();
+</script>
+</body>
+</html>
